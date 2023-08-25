@@ -1,4 +1,6 @@
 ﻿using ExcelExport.Write;
+using System.Data;
+using System.Diagnostics;
 
 namespace ExcelExport
 {
@@ -8,11 +10,14 @@ namespace ExcelExport
         {
             var path = Directory.GetCurrentDirectory();
             var files = GetXlsxFiles(path);
-            
-            foreach ( var file in files )
-            {
-                WriteFromDataTableAsync(file, path);
-            }
+            var to = WriteTo.CSV;
+
+            Stopwatch sw = Stopwatch.StartNew();
+
+            WriteFromDataTable(to, files, path);
+
+            sw.Stop();
+            Console.WriteLine(sw.Elapsed.ToString());
         }
 
         static string[] GetXlsxFiles(string targetDirectory)
@@ -23,37 +28,66 @@ namespace ExcelExport
             return Directory.GetFiles(targetDirectory, "*.xlsx");
         }
 
-        static bool WriteFromDataTableAsync(string file, string path)
-        {   
-            var er = new ExcelReader(file, true);
+        static bool WriteFromDataTable(WriteTo to, string[] files, string path)
+        {
+            Parallel.ForEach(files, file =>
+            {
+                WriteFromDataTable(to, file, path);
+            });
+
+            //foreach (var xlsx in files)
+            //    WriteFromDataTable(to, xlsx, path);
+
+            return true;
+        }
+
+        static bool WriteFromDataTable(WriteTo to, string xlsx, string path)
+        {
+            var name = Path.GetFileNameWithoutExtension(xlsx); 
+            if (null == name)
+                return false;
+
+            using var er = new ExcelReader(xlsx, true);
             if (!er.Open())
                 return false;
 
-            foreach (var name in er.GetNames())
+            foreach (var sheet in er.GetNames())
             {
-                var dt = er.ToDataTable(name);
+                var dt = er.ToDataTable(sheet);
                 if (dt == null)
                     continue;
 
-                var targetFile = Path.GetFileNameWithoutExtension(file);
+                if (!WriteFile(to, path, name, dt))
+                    continue;
+            }
+
+            return true;
+        }
+
+        private static bool WriteFile(WriteTo to, string path, string file, DataTable dt)
+        {
+            if (to == WriteTo.JSON)
+            {
                 var jsonWriter = WriteFactory.Create(WriteTo.JSON);
                 if (jsonWriter == null)
-                    continue;
+                    return false;
 
-                if (!jsonWriter.ToSave(path, targetFile, dt))
+                if (!jsonWriter.ToSave(path, file, dt))
                 {
-                    Console.WriteLine("Fail - {0}", targetFile);
-                    continue;
+                    Console.WriteLine("Fail - {0}", file);
+                    return false;
                 }
-
+            }
+            else if (to == WriteTo.CSV)
+            {
                 var csvWriter = WriteFactory.Create(WriteTo.CSV);
                 if (csvWriter == null)
-                    continue;
-                
-                if (!csvWriter.ToSave(path, targetFile, dt))
+                    return false;
+
+                if (!csvWriter.ToSave(path, file, dt))
                 {
-                    Console.WriteLine("Fail - {0}", targetFile);
-                    continue;
+                    Console.WriteLine("Fail - {0}", file);
+                    return false;
                 }
             }
 

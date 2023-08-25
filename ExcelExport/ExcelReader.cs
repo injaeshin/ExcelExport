@@ -1,9 +1,10 @@
 ﻿using ExcelDataReader;
 using System.Data;
+using System.Runtime.InteropServices;
 
 namespace ExcelExport
 {
-    internal class ExcelReader
+    internal class ExcelReader : IDisposable
     {
         private string _file;
         private bool _useHeaderRow = false;
@@ -36,10 +37,7 @@ namespace ExcelExport
             }
             catch (Exception e)
             {
-                _stream?.Dispose();
-                _stream = null;
-                _dataReader?.Dispose();
-                _dataReader = null;
+                Close();
 
                 Console.WriteLine(e.ToString());
 
@@ -47,6 +45,21 @@ namespace ExcelExport
             }
 
             return true;
+        }
+
+        public void Close()
+        {
+            _dataSet?.Dispose();
+            _dataSet = null;
+            _stream?.Dispose();
+            _stream = null;
+            _dataReader?.Dispose();
+            _dataReader = null;
+        }
+
+        public void Dispose()
+        {
+            Close();
         }
 
         public void Clear()
@@ -108,5 +121,7 @@ namespace ExcelExport
 
             return _dataSet?.Tables[sheetName];
         }
+
+
     }
 }
