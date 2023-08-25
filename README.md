@@ -4,7 +4,7 @@ Export Excel files to JSON or CSV
 
 # TODO
 * 설정 기능 추가 (conf 파일)
-  0. CSV, JSON 설정
   1. output 위치 설정
   2. header column 사용 여부
   3. skip row 설정
+  4. CSV, JSON 설정
